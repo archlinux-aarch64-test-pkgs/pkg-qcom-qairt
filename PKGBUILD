@@ -59,7 +59,7 @@ _package_qairt_sdk() {
 
 package_qcom-qairt-sdk-v68() {
     pkgdesc='Qualcomm AI Runtime SDK with QNN, SNPE, QAIRT, and Genie (Hexagon v68)'
-    depends=('gcc-libs' 'python312' 'python312-numpy')
+    depends=('gcc-libs' 'python312' 'python312-numpy' 'python312-pyyaml' 'python312-onnx' 'python312-pandas' 'python312-pydantic' 'python312-aenum')
     provides=('qcom-qairt-sdk' 'qcom-qnn-sdk' 'qcom-snpe-sdk' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68')
     conflicts=('qcom-qairt-sdk-v73' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
     replaces=('qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68')
@@ -69,7 +69,7 @@ package_qcom-qairt-sdk-v68() {
 
 package_qcom-qairt-sdk-v73() {
     pkgdesc='Qualcomm AI Runtime SDK with QNN, SNPE, QAIRT, and Genie (Hexagon v73)'
-    depends=('gcc-libs' 'python312' 'python312-numpy')
+    depends=('gcc-libs' 'python312' 'python312-numpy' 'python312-pyyaml' 'python312-onnx' 'python312-pandas' 'python312-pydantic' 'python312-aenum')
     provides=('qcom-qairt-sdk' 'qcom-qnn-sdk' 'qcom-snpe-sdk' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
     conflicts=('qcom-qairt-sdk-v68' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
     replaces=('qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
