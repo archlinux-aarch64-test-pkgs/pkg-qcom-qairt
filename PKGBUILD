@@ -1,152 +1,78 @@
 # Maintainer: Xilin Wu <sophon@radxa.com>
 
 pkgbase=qcom-qairt
-pkgname=('qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
-pkgver=2.43.1.260218
-pkgrel=2
+pkgname=('qcom-qairt-sdk-v68' 'qcom-qairt-sdk-v73')
+pkgver=2.50.40.260831
+pkgrel=1
 arch=('aarch64')
 url="https://softwarecenter.qualcomm.com"
 license=('custom:Qualcomm-Technologies-Inc.-Proprietary')
 makedepends=('unzip')
 options=('!strip' '!debug')
 
-_hexagon_v68_dir="hexagon-v68"
-_hexagon_v73_dir="hexagon-v73"
-_qnpsdk_src_ver=${pkgver}
-_qnpsdk_src_shid="4b36d5fce64f32c6be2bfaeff506e22bd737ff85190605ee1d3bf2dc6495fc81"
-_platform_dir="aarch64-oe-linux-gcc11.2"
+_platform_dir='aarch64-oe-linux-gcc11.2'
+_python_platform_dir='linux-aarch64-oe-gcc11.2'
 
-source=("https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/${_qnpsdk_src_ver}/v${_qnpsdk_src_ver}.zip")
-sha256sums=("${_qnpsdk_src_shid}")
+source=("https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/${pkgver}/v${pkgver}.zip")
+sha256sums=('e821833cff67b0c55a413c920658cf9132a92e06309b6c26900149fd1a8809da')
 
-package_qcom-qnn-sdk-v68() {
-    pkgdesc="Qualcomm Neural Network SDK (Hexagon v68)"
-    provides=('qcom-qnn-sdk')
-    conflicts=('qcom-qnn-sdk-v73')
-    depends=()
+_package_qairt_sdk() {
+    local hexagon_dir=$1
+    local hexagon_version=${hexagon_dir#hexagon-v}
+    local _sdk_dir="${srcdir}/qairt/${pkgver}"
+    local library
+    local python_tool
 
-    local _qnn_dir="${srcdir}/qairt/${_qnpsdk_src_ver}"
+    install -dm755 \
+        "${pkgdir}/usr/bin" \
+        "${pkgdir}/usr/include" \
+        "${pkgdir}/usr/lib" \
+        "${pkgdir}/usr/lib/qcom-qairt/python" \
+        "${pkgdir}/usr/lib/rfsa/adsp" \
+        "${pkgdir}/usr/share" \
+        "${pkgdir}/usr/share/licenses/${pkgname}"
 
-    install -d "${pkgdir}/usr/bin"
-    install -d "${pkgdir}/usr/include"
-    install -d "${pkgdir}/usr/lib/rfsa/adsp"
-    install -d "${pkgdir}/usr/share/licenses/${pkgname}"
+    cp -a "${_sdk_dir}/bin/${_platform_dir}/." "${pkgdir}/usr/bin/"
+    cp -a "${_sdk_dir}/include/." "${pkgdir}/usr/include/"
+    for library in "${_sdk_dir}/lib/${_platform_dir}/"*; do
+        [[ ${library##*/} == *V[0-9]* && ${library##*/} != *V${hexagon_version}* ]] && continue
+        install -m755 "${library}" "${pkgdir}/usr/lib/"
+    done
+    cp -a "${_sdk_dir}/lib/${hexagon_dir}/unsigned/." "${pkgdir}/usr/lib/rfsa/adsp/"
+    cp -a "${_sdk_dir}/lib/python/." "${pkgdir}/usr/lib/qcom-qairt/python/"
+    cp -a "${_sdk_dir}/share/." "${pkgdir}/usr/share/"
 
-    # Libraries
-    install -m 0755 ${_qnn_dir}/lib/${_platform_dir}/*Qnn* "${pkgdir}/usr/lib/"
-    install -m 0755 "${_qnn_dir}/lib/${_platform_dir}/libPlatformValidatorShared.so" "${pkgdir}/usr/lib/"
-    install -m 0755 "${_qnn_dir}/lib/${_platform_dir}/libcalculator.so" "${pkgdir}/usr/lib/"
+    # The archive includes x86 and Windows extension modules alongside ARM64.
+    find "${pkgdir}/usr/lib/qcom-qairt/python" -type f \( -name '*.so' -o -name '*.pyd' \) -delete
+    while IFS= read -r -d '' library; do
+        install -Dm755 "${library}" "${pkgdir}/usr/lib/qcom-qairt/python/${library#"${_sdk_dir}/lib/python/"}"
+    done < <(find "${_sdk_dir}/lib/python" -type f -path "*/${_python_platform_dir}/*.so" -print0)
 
-    # Binaries
-    install -m 0755 ${_qnn_dir}/bin/${_platform_dir}/qnn* "${pkgdir}/usr/bin/"
-    install -m 0755 "${_qnn_dir}/bin/${_platform_dir}/qtld-net-run" "${pkgdir}/usr/bin/"
+    for python_tool in qairt-accuracy-debugger qairt-converter qairt-dlc-diff qairt-dlc-info qairt-quantizer; do
+        sed -i '1c #!/usr/bin/env -S PYTHONPATH=/usr/lib/qcom-qairt/python /usr/bin/python3.12' "${pkgdir}/usr/bin/${python_tool}"
+    done
 
-    # Hexagon DSP libraries
-    install -m 0755 ${_qnn_dir}/lib/${_hexagon_v68_dir}/unsigned/libQnn* "${pkgdir}/usr/lib/rfsa/adsp/"
-    install -m 0755 "${_qnn_dir}/lib/${_hexagon_v68_dir}/unsigned/libCalculator_skel.so" "${pkgdir}/usr/lib/rfsa/adsp/"
-
-    # Headers
-    cp -r "${_qnn_dir}/include/QNN/"* "${pkgdir}/usr/include/"
-    chmod -R 0755 "${pkgdir}/usr/include/"
-
-    # License
-    install -m 0644 "${_qnn_dir}/LICENSE.pdf" "${pkgdir}/usr/share/licenses/${pkgname}/"
+    install -Dm644 "${_sdk_dir}/LICENSE.pdf" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.pdf"
+    install -Dm644 "${_sdk_dir}/NOTICE.txt" "${pkgdir}/usr/share/licenses/${pkgname}/NOTICE.txt"
+    install -Dm644 "${_sdk_dir}/QNN_NOTICE.txt" "${pkgdir}/usr/share/licenses/${pkgname}/QNN_NOTICE.txt"
 }
 
-package_qcom-snpe-sdk-v68() {
-    pkgdesc="Snapdragon Neural Processing Engine SDK (Hexagon v68)"
-    provides=('qcom-snpe-sdk')
-    conflicts=('qcom-snpe-sdk-v73')
-    depends=()
+package_qcom-qairt-sdk-v68() {
+    pkgdesc='Qualcomm AI Runtime SDK with QNN, SNPE, QAIRT, and Genie (Hexagon v68)'
+    depends=('gcc-libs' 'python312')
+    provides=('qcom-qairt-sdk' 'qcom-qnn-sdk' 'qcom-snpe-sdk' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68')
+    conflicts=('qcom-qairt-sdk-v73' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
+    replaces=('qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68')
 
-    local _snpe_dir="${srcdir}/qairt/${_qnpsdk_src_ver}"
-
-    install -d "${pkgdir}/usr/bin"
-    install -d "${pkgdir}/usr/include"
-    install -d "${pkgdir}/usr/lib/rfsa/adsp"
-    install -d "${pkgdir}/usr/share/licenses/${pkgname}"
-
-    # Libraries
-    install -m 0755 ${_snpe_dir}/lib/${_platform_dir}/*Snpe* "${pkgdir}/usr/lib/"
-    install -m 0755 "${_snpe_dir}/lib/${_platform_dir}/libSNPE.so" "${pkgdir}/usr/lib/"
-    install -m 0755 "${_snpe_dir}/lib/${_platform_dir}/libhta_hexagon_runtime_snpe.so" "${pkgdir}/usr/lib/"
-
-    # Binaries
-    install -m 0755 ${_snpe_dir}/bin/${_platform_dir}/snpe* "${pkgdir}/usr/bin/"
-
-    # Hexagon DSP libraries
-    install -m 0755 ${_snpe_dir}/lib/${_hexagon_v68_dir}/unsigned/libSnpe* "${pkgdir}/usr/lib/rfsa/adsp/"
-
-    # Headers
-    cp -r "${_snpe_dir}/include/SNPE/"* "${pkgdir}/usr/include/"
-    chmod -R 0755 "${pkgdir}/usr/include/"
-
-    # License
-    install -m 0644 "${_snpe_dir}/LICENSE.pdf" "${pkgdir}/usr/share/licenses/${pkgname}/"
+    _package_qairt_sdk 'hexagon-v68'
 }
 
-package_qcom-qnn-sdk-v73() {
-    pkgdesc="Qualcomm Neural Network SDK (Hexagon v73)"
-    provides=('qcom-qnn-sdk')
-    conflicts=('qcom-qnn-sdk-v68')
-    depends=()
+package_qcom-qairt-sdk-v73() {
+    pkgdesc='Qualcomm AI Runtime SDK with QNN, SNPE, QAIRT, and Genie (Hexagon v73)'
+    depends=('gcc-libs' 'python312')
+    provides=('qcom-qairt-sdk' 'qcom-qnn-sdk' 'qcom-snpe-sdk' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
+    conflicts=('qcom-qairt-sdk-v68' 'qcom-qnn-sdk-v68' 'qcom-snpe-sdk-v68' 'qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
+    replaces=('qcom-qnn-sdk-v73' 'qcom-snpe-sdk-v73')
 
-    local _qnn_dir="${srcdir}/qairt/${_qnpsdk_src_ver}"
-
-    install -d "${pkgdir}/usr/bin"
-    install -d "${pkgdir}/usr/include"
-    install -d "${pkgdir}/usr/lib/rfsa/adsp"
-    install -d "${pkgdir}/usr/share/licenses/${pkgname}"
-
-    # Libraries
-    install -m 0755 ${_qnn_dir}/lib/${_platform_dir}/*Qnn* "${pkgdir}/usr/lib/"
-    install -m 0755 "${_qnn_dir}/lib/${_platform_dir}/libPlatformValidatorShared.so" "${pkgdir}/usr/lib/"
-    install -m 0755 "${_qnn_dir}/lib/${_platform_dir}/libcalculator.so" "${pkgdir}/usr/lib/"
-
-    # Binaries
-    install -m 0755 ${_qnn_dir}/bin/${_platform_dir}/qnn* "${pkgdir}/usr/bin/"
-    install -m 0755 "${_qnn_dir}/bin/${_platform_dir}/qtld-net-run" "${pkgdir}/usr/bin/"
-
-    # Hexagon DSP libraries
-    install -m 0755 ${_qnn_dir}/lib/${_hexagon_v73_dir}/unsigned/libQnn* "${pkgdir}/usr/lib/rfsa/adsp/"
-    install -m 0755 "${_qnn_dir}/lib/${_hexagon_v73_dir}/unsigned/libCalculator_skel.so" "${pkgdir}/usr/lib/rfsa/adsp/"
-
-    # Headers
-    cp -r "${_qnn_dir}/include/QNN/"* "${pkgdir}/usr/include/"
-    chmod -R 0755 "${pkgdir}/usr/include/"
-
-    # License
-    install -m 0644 "${_qnn_dir}/LICENSE.pdf" "${pkgdir}/usr/share/licenses/${pkgname}/"
-}
-
-package_qcom-snpe-sdk-v73() {
-    pkgdesc="Snapdragon Neural Processing Engine SDK (Hexagon v73)"
-    provides=('qcom-snpe-sdk')
-    conflicts=('qcom-snpe-sdk-v68')
-    depends=()
-
-    local _snpe_dir="${srcdir}/qairt/${_qnpsdk_src_ver}"
-
-    install -d "${pkgdir}/usr/bin"
-    install -d "${pkgdir}/usr/include"
-    install -d "${pkgdir}/usr/lib/rfsa/adsp"
-    install -d "${pkgdir}/usr/share/licenses/${pkgname}"
-
-    # Libraries
-    install -m 0755 ${_snpe_dir}/lib/${_platform_dir}/*Snpe* "${pkgdir}/usr/lib/"
-    install -m 0755 "${_snpe_dir}/lib/${_platform_dir}/libSNPE.so" "${pkgdir}/usr/lib/"
-    install -m 0755 "${_snpe_dir}/lib/${_platform_dir}/libhta_hexagon_runtime_snpe.so" "${pkgdir}/usr/lib/"
-
-    # Binaries
-    install -m 0755 ${_snpe_dir}/bin/${_platform_dir}/snpe* "${pkgdir}/usr/bin/"
-
-    # Hexagon DSP libraries
-    install -m 0755 ${_snpe_dir}/lib/${_hexagon_v73_dir}/unsigned/libSnpe* "${pkgdir}/usr/lib/rfsa/adsp/"
-
-    # Headers
-    cp -r "${_snpe_dir}/include/SNPE/"* "${pkgdir}/usr/include/"
-    chmod -R 0755 "${pkgdir}/usr/include/"
-
-    # License
-    install -m 0644 "${_snpe_dir}/LICENSE.pdf" "${pkgdir}/usr/share/licenses/${pkgname}/"
+    _package_qairt_sdk 'hexagon-v73'
 }
